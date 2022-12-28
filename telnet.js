@@ -1,13 +1,15 @@
 const net = require('net');
 const { host, strMatch, keyWord, cliArray } = require('./data/telnet.model');
 
-
-let store = [];
-let i = 0;
 let outputObj;
 let authorized = false;
-let start = true;
-let secondStep = true;
+let store = [];
+let str = '';
+let i = 0;
+
+process.on('error', (err) => {
+	console.log(err);
+});
 
 const socket = net.createConnection(23, host, () => {
 	process.stdin.pipe(socket);
@@ -16,44 +18,29 @@ const socket = net.createConnection(23, host, () => {
 
 
 socket.on('data', chunk => {
-	let str = chunk.toString().trim();
-	if (start) {
-		setTimeout(() => {
-			start = false;
-			return;
-		}, 1000);
-	}
-
-	if (secondStep) {
-		setTimeout(() => {
-			socket.write(strMatch[0].output);
-			secondStep = false;
-		}, 1000);
-	}
-
-	if (i === cliArray.length) {
-		store.push(str);
-		socket.end();
-		console.dir(store);
-		return;
-	}
-
-	if (authorized) {
-		store.push(str);
-		socket.write(cliArray[i] + '\n\r');
-		i++;
-	}
-
+	str = chunk.toString().trim();
+	console.log(str);
 	if (str.length > 1) {
-		outputObj = strMatch.find(item => item.input.includes(str));
-		if (outputObj != undefined) {
-			process.stdout.write(str);
-			socket.write(outputObj.output);
-			if (outputObj.input === keyWord) {
-				console.log("Authority successful");
-				authorized = true;
+		if (i === cliArray.length) {
+			store.push(str);
+			socket.end();
+			console.dir(store);
+			return;
+		}
+		if (authorized) {
+			store.push(str);
+			socket.write(cliArray[i] + '\n\r');
+			i++;
+		} else {
+			outputObj = strMatch.find(item => item.input.includes(str));
+			if (outputObj != undefined) {
+				process.stdout.write(str);
+				socket.write(outputObj.output);
+				if (outputObj.input === keyWord) {
+					authorized = true;
+				}
 			}
 		}
-
 	}
 });
+
