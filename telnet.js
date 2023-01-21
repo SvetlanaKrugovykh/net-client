@@ -1,6 +1,5 @@
 const net = require('net');
-const { setTimeout } = require('timers/promises');
-const { HOST, username, password, cliArray } = require('./data/telnet.model');
+const { HOST, username, password, cliArray, searchStr } = require('./data/telnet.model');
 const PORT = 23; // Telnet port
 
 let store = [];
@@ -25,14 +24,13 @@ client.on('data', (data) => {
 	} else {
 		if (authorized && (buffer.length > 1)) {
 			if (i === cliArray.length) {
-				store.push(buffer);
+				if (buffer.includes(searchStr)) store.push(buffer);
 				client.on('close', () => {
 					console.log('Connection closed');
+					console.dir(store);
 				});
-				console.dir(store);
-				return;
 			}
-			store.push(buffer);
+			if (buffer.includes(searchStr)) store.push(buffer);
 			client.write(cliArray[i] + '\n');
 			i++;
 		}
