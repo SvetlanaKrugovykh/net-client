@@ -1,46 +1,43 @@
 const net = require('net');
-const { host, strMatch, keyWord, cliArray } = require('./data/telnet.model');
+const { setTimeout } = require('timers/promises');
+const { HOST, username, password, cliArray } = require('./data/telnet.model');
+const PORT = 23; // Telnet port
 
-let outputObj;
-let authorized = false;
 let store = [];
-let str = '';
+let authorized = false;
 let i = 0;
 
-process.on('error', (err) => {
-	console.log(err);
+const client = new net.Socket();
+
+client.connect(PORT, HOST, () => {
+	console.log('Connected to network device');
 });
 
-const socket = net.createConnection(23, host, () => {
-	process.stdin.pipe(socket);
-	process.stdin.setEncoding('utf8');
-});
+let buffer = '';
 
-
-socket.on('data', chunk => {
-	str = chunk.toString().trim();
-	console.log(str);
-	if (str.length > 1) {
-		if (i === cliArray.length) {
-			store.push(str);
-			socket.end();
-			console.dir(store);
-			return;
-		}
-		if (authorized) {
-			store.push(str);
-			socket.write(cliArray[i] + '\n\r');
-			i++;
-		} else {
-			outputObj = strMatch.find(item => item.input.includes(str));
-			if (outputObj != undefined) {
-				process.stdout.write(str);
-				socket.write(outputObj.output);
-				if (outputObj.input === keyWord) {
-					authorized = true;
-				}
+client.on('data', (data) => {
+	buffer += data.toString().trim();
+	if (buffer.includes('Username:')) {
+		client.write(username);
+	} else if (buffer.startsWith('Password:')) {
+		client.write(password);
+		authorized = true;
+	} else {
+		if (authorized && (buffer.length > 1)) {
+			if (i === cliArray.length) {
+				store.push(buffer);
+				client.on('close', () => {
+					console.log('Connection closed');
+				});
+				console.dir(store);
+				return;
 			}
+			store.push(buffer);
+			client.write(cliArray[i] + '\n');
+			i++;
 		}
 	}
+
+	buffer = '';
 });
 
